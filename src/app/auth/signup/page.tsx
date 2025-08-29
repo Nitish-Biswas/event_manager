@@ -32,10 +32,15 @@ export default function SignupPage() {
     setMessage('')
 
     try {
-      // Sign up the user
+      // Sign up the user with metadata for name (for trigger)
       const { data, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            name: formData.name
+          }
+        }
       })
 
       if (authError) {
@@ -43,24 +48,15 @@ export default function SignupPage() {
         return
       }
 
-      if (data.user) {
-        // Insert user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            name: formData.name,
-            email: formData.email,
-          })
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError)
-          // Don't show this error to user as auth was successful
-        }
-
-        setMessage('Account created successfully! You can now sign in.')
+      // Assuming trigger handles profile insertion
+      if (data.user && !data.session) {
+        // Email confirmation required
+        setMessage('Confirmation email sent to your email. Please click the link to verify your email.')
+      } else if (data.session) {
+        // Auto-signed in (confirmation off)
+        setMessage('Account created successfully! Redirecting...')
         setTimeout(() => {
-          router.push('/auth/login')
+          router.push('/')
         }, 2000)
       }
     } catch (err) {

@@ -7,10 +7,11 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 export default async function EventDetailsPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const params = await paramsPromise;
   const supabase = await createClient()
   
   // Get current user
