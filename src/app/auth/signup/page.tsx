@@ -39,7 +39,8 @@ export default function SignupPage() {
         options: {
           data: {
             name: formData.name
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
         }
       })
 
