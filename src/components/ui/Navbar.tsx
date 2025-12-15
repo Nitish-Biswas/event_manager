@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export function Navbar() {
-  // Use 'any' temporarily to handle both Auth User and DB User types seamlessly
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
@@ -16,15 +15,15 @@ export function Navbar() {
   useEffect(() => {
     const initializeUser = async () => {
       // 1. Ask Supabase Auth: "Is this person logged in?"
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+      // We extract 'authUser' directly and 'authError' if needed
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
 
       if (authUser) {
         // SUCCESS: We are logged in. Set state IMMEDIATELY.
-        // This ensures the button appears even if the DB fetch fails later.
         setUser(authUser)
 
-        // 2. Optional: Try to get extra details (Name, Avatar) from the database
-        const { data: dbUser, error } = await supabase
+        // 2. Optional: Try to get extra details (Name) from the database
+        const { data: dbUser, error: dbError } = await supabase
           .from('users')
           .select('*')
           .eq('id', authUser.id)
@@ -33,9 +32,9 @@ export function Navbar() {
         if (dbUser) {
           // If we found a profile, merge it with the auth data
           setUser((prev: any) => ({ ...prev, ...dbUser }))
-        } else if (error) {
-          console.warn("User is logged in, but profile fetch failed:", error.message)
-          // We DO NOT set user to null here. We stay logged in.
+        } else if (dbError) {
+          // If DB fetch fails, we just warn console but keep the user logged in
+          console.warn("Profile fetch warning:", dbError.message)
         }
       } else {
         setUser(null)
@@ -46,13 +45,13 @@ export function Navbar() {
 
     initializeUser()
 
-    // 3. Listen for changes (Sign In / Sign Out events)
+    // 3. Listen for real-time auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
           setUser(session.user) // Immediate update
           
-          // Fetch profile in background
+          // Background fetch for profile details
           const { data: dbUser } = await supabase
             .from('users')
             .select('*')
@@ -73,14 +72,14 @@ export function Navbar() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
-    router.push('/auth/login')
-    router.refresh()
+    router.push('/auth/login') // Redirect to login
+    router.refresh() // Clear server cache
   }
 
   // Helper to safely get a display name
   const getDisplayName = () => {
     if (!user) return ''
-    // 1. Try DB Name, 2. Try Google/Auth Meta Name, 3. Fallback to Email
+    // Priority: 1. DB Name, 2. Google Name, 3. Email prefix
     return user.name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
   }
 
