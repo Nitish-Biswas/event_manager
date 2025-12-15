@@ -14,9 +14,7 @@ export function Navbar() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  /* ---------------------------------------------------------
-     Restore session on page refresh (PRODUCTION SAFE)
-  --------------------------------------------------------- */
+
   useEffect(() => {
     let mounted = true
 
@@ -49,9 +47,6 @@ export function Navbar() {
     }
   }, [supabase])
 
-  /* ---------------------------------------------------------
-     Sign out
-  --------------------------------------------------------- */
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
@@ -64,9 +59,7 @@ export function Navbar() {
     user?.email?.split('@')[0] ||
     'User'
 
-  /* ---------------------------------------------------------
-     UI
-  --------------------------------------------------------- */
+
   return (
     <nav className="bg-white border-b shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,16 +1,9 @@
+// lib/supabase/middleware.ts
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  // DEBUG: Log ALL cookies the server receives
-  const allCookies = request.cookies.getAll()
-  console.log("---------------- MIDDELWARE START ----------------")
-  console.log("Request URL:", request.nextUrl.pathname)
-  console.log("Cookies received by Server:", allCookies.map(c => c.name))
-  
-  const hasAuthCookie = allCookies.some(c => c.name.includes('sb-') && c.name.includes('-auth-token'))
-  console.log("Server sees Auth Cookie?", hasAuthCookie ? "YES" : "NO")
-
+  // 1. Create an unmodified response initially
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -26,8 +19,17 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({ request })
+          // 2. Sync cookies: Update the request cookies so Server Components see the new session
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
+          
+          // 3. Re-create the response with the updated request cookies
+          response = NextResponse.next({
+            request,
+          })
+          
+          // 4. Update the response cookies so the Browser sees the new session
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           )
@@ -36,11 +38,8 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // DEBUG: Result of getUser()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  console.log("Middleware getUser() result:", user?.email || "NULL")
-  if (error) console.log("Middleware Error:", error.message)
-  console.log("---------------- MIDDLEWARE END ----------------")
+  // 5. Refresh the session (this triggers the cookie updates above)
+  await supabase.auth.getUser()
 
   return response
 }
