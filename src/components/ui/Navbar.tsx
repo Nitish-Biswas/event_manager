@@ -7,31 +7,35 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export function Navbar() {
-  // We keep 'user' generic to handle both Auth User and DB User
+  // Use 'any' temporarily to handle both Auth User and DB User types seamlessly
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      // 1. Check Auth (The Source of Truth)
+    const initializeUser = async () => {
+      // 1. Ask Supabase Auth: "Is this person logged in?"
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
       if (authUser) {
-        // A. IMMEDIATE UPDATE: User is logged in. Show the UI immediately using Auth data.
-        setUser(authUser) 
-        
-        // B. ENRICH DATA: Try to fetch the pretty name from the database
-        const { data: dbUser } = await supabase
+        // SUCCESS: We are logged in. Set state IMMEDIATELY.
+        // This ensures the button appears even if the DB fetch fails later.
+        setUser(authUser)
+
+        // 2. Optional: Try to get extra details (Name, Avatar) from the database
+        const { data: dbUser, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', authUser.id)
           .single()
-        
-        // If we found a DB profile, merge it. If not, we still have the authUser.
+
         if (dbUser) {
-          setUser({ ...authUser, ...dbUser })
+          // If we found a profile, merge it with the auth data
+          setUser((prev: any) => ({ ...prev, ...dbUser }))
+        } else if (error) {
+          console.warn("User is logged in, but profile fetch failed:", error.message)
+          // We DO NOT set user to null here. We stay logged in.
         }
       } else {
         setUser(null)
@@ -40,19 +44,22 @@ export function Navbar() {
       setLoading(false)
     }
 
-    initializeAuth()
+    initializeUser()
 
-    // Listen for auth changes
+    // 3. Listen for changes (Sign In / Sign Out events)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          setUser(session.user) // Set immediately to prevent flicker
+          setUser(session.user) // Immediate update
+          
+          // Fetch profile in background
           const { data: dbUser } = await supabase
             .from('users')
             .select('*')
             .eq('id', session.user.id)
             .single()
-          if (dbUser) setUser({ ...session.user, ...dbUser })
+            
+          if (dbUser) setUser((prev: any) => ({ ...prev, ...dbUser }))
         } else {
           setUser(null)
         }
@@ -66,13 +73,14 @@ export function Navbar() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
+    router.push('/auth/login')
     router.refresh()
   }
 
-  // Helper to get display name safely
+  // Helper to safely get a display name
   const getDisplayName = () => {
     if (!user) return ''
-    // Check for DB 'name', then metadata 'name', then fallback to email
+    // 1. Try DB Name, 2. Try Google/Auth Meta Name, 3. Fallback to Email
     return user.name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
   }
 
@@ -90,7 +98,7 @@ export function Navbar() {
 
           <div className="flex items-center gap-6">
             {loading ? (
-              // Loading Skeleton to prevent layout shift
+              // Loading Skeleton
               <div className="h-8 w-24 bg-gray-100 animate-pulse rounded" />
             ) : (
               <>
@@ -98,7 +106,6 @@ export function Navbar() {
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 text-gray-700">
                       <UserIcon className="w-4 h-4" />
-                      {/* Use the helper function here */}
                       <span className="text-sm font-medium">{getDisplayName()}</span>
                     </div>
                     <button
@@ -119,9 +126,7 @@ export function Navbar() {
                     </Link>
                     <Link
                       href="/auth/signup"
-                      className="btn btn-primary"
-                      // Use a standard class or inline style if 'btn-primary' isn't defined in your global CSS
-                      style={{ padding: '0.5rem 1rem', backgroundColor: '#2563EB', color: 'white', borderRadius: '0.375rem' }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
                     >
                       Get started
                     </Link>
