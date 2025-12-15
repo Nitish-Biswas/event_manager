@@ -21,7 +21,7 @@ export function Navbar() {
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
 
       console.log(">>> CLIENT: Supabase getUser() returned:", authUser?.email)
-      if (authError) console.error(">>> CLIENT: Supabase Error:", error)
+      if (authError) console.error(">>> CLIENT: Supabase Error:", authError)
       if (authUser) {
         // SUCCESS: We are logged in. Set state IMMEDIATELY.
         setUser(authUser)
