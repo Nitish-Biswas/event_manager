@@ -18,7 +18,7 @@ export default async function EventDetailsPage({
   const { data: { user: authUser } } = await supabase.auth.getUser()
   
   // Fetch event details with organizer
-  const { data: event, error } = await supabase
+  const { data: event, error: eventError } = await supabase
     .from('events')
     .select(`
       *,
@@ -27,10 +27,19 @@ export default async function EventDetailsPage({
     .eq('id', params.id)
     .single()
 
-  if (error || !event) {
+  
+
+  // DEBUGGING LOGS (Check your server terminal)
+  console.log("----------------DEBUGGING----------------")
+  console.log("Event ID:", params.id)
+  console.log("Fetch Error:", eventError)
+  console.log("Event Data:", event)
+  console.log("-----------------------------------------")
+
+  if (eventError || !event) {
+    // console.log("Triggering notFound()") // Uncomment to see if this is hit
     notFound()
   }
-
   // Fetch RSVP data
   const { data: rsvps } = await supabase
     .from('rsvps')

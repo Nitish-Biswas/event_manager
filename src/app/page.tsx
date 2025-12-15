@@ -9,14 +9,12 @@ export default async function HomePage() {
   
   // Fetch upcoming events with organizer information and RSVP counts
   const { data: events, error } = await supabase
-    .from('events')
-    .select(`
-      *,
-      organizer:users(name, email),
-      rsvps(status)
-    `)
-    .gte('date', new Date().toISOString())
-    .order('date', { ascending: true })
+  .from('events')
+  .select(`
+    *,
+    organizer:users!created_by(name, email), 
+    rsvps(status)
+  `)
 
   if (error) {
     console.error('Error fetching events:', error)
