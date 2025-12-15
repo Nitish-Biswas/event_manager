@@ -13,32 +13,66 @@ export function Navbar() {
   const router = useRouter()
 
   useEffect(() => {
+    // const initializeUser = async () => {
+    //   // 1. Ask Supabase Auth: "Is this person logged in?"
+    //   // We extract 'authUser' directly and 'authError' if needed
+    //   console.log(">>> CLIENT: Checking Auth...")
+    //   console.log(">>> CLIENT: Document Cookie string:", document.cookie) // DANGEROUS: Don't show to others, purely for your debug
+    //   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    //   console.log(">>> CLIENT: Supabase getUser() returned:", authUser?.email)
+    //   if (authError) console.error(">>> CLIENT: Supabase Error:", authError)
+    //   if (authUser) {
+    //     // SUCCESS: We are logged in. Set state IMMEDIATELY.
+    //     setUser(authUser)
+
+    //     // 2. Optional: Try to get extra details (Name) from the database
+    //     const { data: dbUser, error: dbError } = await supabase
+    //       .from('users')
+    //       .select('*')
+    //       .eq('id', authUser.id)
+    //       .single()
+
+    //     if (dbUser) {
+    //       // If we found a profile, merge it with the auth data
+    //       setUser((prev: any) => ({ ...prev, ...dbUser }))
+    //     } else if (dbError) {
+    //       // If DB fetch fails, we just warn console but keep the user logged in
+    //       console.warn("Profile fetch warning:", dbError.message)
+    //     }
+    //   } else {
+    //     setUser(null)
+    //   }
+      
+    //   setLoading(false)
+    // }
+
+    // Inside Navbar.tsx
+
     const initializeUser = async () => {
-      // 1. Ask Supabase Auth: "Is this person logged in?"
-      // We extract 'authUser' directly and 'authError' if needed
+      // 1. Try getSession first (Reads directly from cookie - FAST)
+
       console.log(">>> CLIENT: Checking Auth...")
       console.log(">>> CLIENT: Document Cookie string:", document.cookie) // DANGEROUS: Don't show to others, purely for your debug
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      const { data: { session }, error: SesError } = await supabase.auth.getSession()
 
-      console.log(">>> CLIENT: Supabase getUser() returned:", authUser?.email)
-      if (authError) console.error(">>> CLIENT: Supabase Error:", authError)
-      if (authUser) {
-        // SUCCESS: We are logged in. Set state IMMEDIATELY.
-        setUser(authUser)
-
-        // 2. Optional: Try to get extra details (Name) from the database
-        const { data: dbUser, error: dbError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.id)
-          .single()
-
-        if (dbUser) {
-          // If we found a profile, merge it with the auth data
-          setUser((prev: any) => ({ ...prev, ...dbUser }))
-        } else if (dbError) {
-          // If DB fetch fails, we just warn console but keep the user logged in
-          console.warn("Profile fetch warning:", dbError.message)
+      if (SesError) console.error(">>> CLIENT: Supabase Error:", SesError)
+      if (session?.user) {
+        // Logged in! Show button immediately
+        setUser(session.user)
+        
+        // 2. Validate with getUser in background (SECURITY)
+        const { data: validData } = await supabase.auth.getUser()
+        if (!validData.user) {
+           setUser(null) // Token was actually revoked/invalid
+        } else {
+           // 3. Fetch profile if needed
+           const { data: dbUser } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+           if (dbUser) setUser((prev: any) => ({ ...prev, ...dbUser }))
         }
       } else {
         setUser(null)
