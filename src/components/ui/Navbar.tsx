@@ -16,8 +16,12 @@ export function Navbar() {
     const initializeUser = async () => {
       // 1. Ask Supabase Auth: "Is this person logged in?"
       // We extract 'authUser' directly and 'authError' if needed
+      console.log(">>> CLIENT: Checking Auth...")
+      console.log(">>> CLIENT: Document Cookie string:", document.cookie) // DANGEROUS: Don't show to others, purely for your debug
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
 
+      console.log(">>> CLIENT: Supabase getUser() returned:", authUser?.email)
+      if (authError) console.error(">>> CLIENT: Supabase Error:", error)
       if (authUser) {
         // SUCCESS: We are logged in. Set state IMMEDIATELY.
         setUser(authUser)
